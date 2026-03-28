@@ -2,19 +2,27 @@
 
 > *Teaching machines to see the universe — one spiral arm at a time.*
 
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org)
-[![CUDA](https://img.shields.io/badge/CUDA-12.6-76B900?style=flat-square&logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
-[![Dataset](https://img.shields.io/badge/Dataset-Galaxy_Zoo_2-8B5CF6?style=flat-square)](https://www.kaggle.com/c/galaxy-zoo-the-galaxy-challenge)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)]()
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)]()
+[![CUDA](https://img.shields.io/badge/CUDA-12.6-76B900?style=flat-square&logo=nvidia&logoColor=white)]()
+[![Dataset](https://img.shields.io/badge/Dataset-Galaxy_Zoo_2-8B5CF6?style=flat-square)]()
 [![Status](https://img.shields.io/badge/Status-In_Development-F59E0B?style=flat-square)]()
 
 ---
 
 ## What Is This?
 
-This project trains a **Convolutional Neural Network (CNN)** to classify galaxies by their morphological type — whether a galaxy is **elliptical**, **spiral**, or a **merger/artifact** — using real citizen-science data from the [Galaxy Zoo 2](https://www.kaggle.com/c/galaxy-zoo-the-galaxy-challenge) Kaggle competition.
+This project trains a **Convolutional Neural Network (CNN)** to perform binary classification on galaxies by their morphological type — whether a galaxy is **elliptical** and **spiral** — using real citizen-science data from the [Galaxy Zoo 2](https://www.kaggle.com/c/galaxy-zoo-the-galaxy-challenge) Kaggle competition.
 
 Galaxy morphology is a fundamental astrophysical property. The shape of a galaxy encodes its formation history, star-formation rate, and environmental interactions. Automating this classification at scale is an active research problem — this project builds a deep learning pipeline to tackle it.
+
+---
+
+## Background & Motivation
+
+This project sits at the intersection of two interests: **machine learning** and **astronomy**. Galaxy morphology classification is a genuinely hard problem at scale — the SDSS has imaged hundreds of millions of galaxies, far more than humans can manually classify. Projects like Galaxy Zoo crowd-sourced this problem; deep learning is the next step.
+
+Beyond the science, this project demonstrates a complete ML pipeline: from raw, messy probabilistic labels through feature engineering, model design, and GPU-accelerated training.
 
 ---
 
@@ -22,7 +30,7 @@ Galaxy morphology is a fundamental astrophysical property. The shape of a galaxy
 
 | Metric | Value |
 |--------|-------|
-| Task | 3-class galaxy morphology classification |
+| Task | 2-class galaxy morphology classification |
 | Dataset | Galaxy Zoo 2 — 61,578 training images |
 | Baseline Accuracy | *In training* |
 | Model | Custom CNN (built from scratch) |
@@ -40,7 +48,7 @@ Galaxy morphology is a fundamental astrophysical property. The shape of a galaxy
 
 The raw labels are *probabilistic*, not categorical. To convert them into hard training labels, I:
 
-1. Extracted the three Question 1 columns (`Class1.1`, `Class1.2`, `Class1.3`), which correspond to **smooth/elliptical**, **featured/spiral**, and **star or artifact**
+1. Extracted the three Question 1 columns (`Class1.1`, `Class1.2`), which correspond to **smooth/elliptical** and **featured/spiral**
 2. Assigned the class with the highest volunteer agreement via `idxmax`
 3. Applied a **confidence threshold of ≥ 0.65** — samples where no class exceeded this threshold were excluded as ambiguous
 
@@ -58,18 +66,18 @@ Raw JPG Images (424×424)
   (RandomHorizontalFlip, RandomRotation, ColorJitter)
         │
         ▼
-  Normalization → ImageNet stats
+  Normalization → Image stats
         │
         ▼
   Custom CNN
   [Conv → BatchNorm → ReLU → MaxPool] × N layers
         │
         ▼
-  Fully Connected Head → 3 outputs
+  Fully Connected Head → 2 outputs
         │
         ▼
-  Softmax → Class Probabilities
-  (Elliptical | Spiral | Artifact)
+  Binary Classification
+  (Elliptical | Spiral )
 ```
 
 ### Why a Custom CNN?
@@ -167,14 +175,6 @@ kaggle competitions download -c galaxy-zoo-the-galaxy-challenge
 - [ ] Model training & evaluation
 - [ ] Confusion matrix & per-class metrics
 - [ ] Advanced: probabilistic label modeling (KL divergence loss)
-
----
-
-## Background & Motivation
-
-This project sits at the intersection of two interests: **machine learning** and **astronomy**. Galaxy morphology classification is a genuinely hard problem at scale — the SDSS has imaged hundreds of millions of galaxies, far more than humans can manually classify. Projects like Galaxy Zoo crowd-sourced this problem; deep learning is the next step.
-
-Beyond the science, this project demonstrates a complete ML pipeline: from raw, messy probabilistic labels through feature engineering, model design, and GPU-accelerated training.
 
 ---
 
