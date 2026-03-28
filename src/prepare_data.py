@@ -6,9 +6,9 @@ from tqdm import tqdm
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 
-RAW_CSV_PATH = 'data/training_solutions_rev1.csv'
-INPUT_IMG_DIR = 'data/images/train/images_training_rev1/'
-OUTPUT_IMG_DIR = 'data/images/train/images_resized/'
+RAW_CSV_PATH = '../data/training_solutions_rev1.csv'
+INPUT_IMG_DIR = '../data/images/train/images_training_rev1/'
+OUTPUT_IMG_DIR = '../data/images/train/images_resized/'
 CONFIDENCE_THRESHOLD = 0.65
 IMG_SIZE = (224, 224)
 

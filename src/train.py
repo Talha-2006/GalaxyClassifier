@@ -4,14 +4,14 @@ import pandas as pd
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 
-from dataset import GalaxyDataset
+from src.dataset import GalaxyDataset
 from model import GalaxyCNN
 from engine import train_one_epoch, validate
 
 if __name__ == '__main__':
 
     # Config
-    IMG_DIR = 'data/images/train/images_resized/'
+    IMG_DIR = '../data/images/train/images_resized/'
     TRAIN_CSV = 'data/train.csv'
     VAL_CSV = 'data/val.csv'
     NUM_EPOCHS = 30
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             epochs_no_improve = 0
-            torch.save(model.state_dict(), 'best_model.pth')
+            torch.save(model.state_dict(), '../best_model.pth')
             print("Model saved.")
         else:
             epochs_no_improve += 1
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         'val_losses': val_losses,
         'train_accs': train_accs,
         'val_accs': val_accs
-    }, 'training_history.pt')
+    }, '../training_history.pt')
 
     print("\nTraining complete.")
     print(f"Best val loss: {best_val_loss:.4f}")
