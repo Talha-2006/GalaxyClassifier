@@ -1,28 +1,22 @@
 # 🌌 Galaxy Morphology Classifier
 
-> *Teaching machines to see the universe — one spiral arm at a time.*
+> *A convolutional neural network trained from scratch to classify galaxy morphology using real citizen-science data.*
+
+![Banner](assets/banner.jpg)
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)]()
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)]()
 [![CUDA](https://img.shields.io/badge/CUDA-12.6-76B900?style=flat-square&logo=nvidia&logoColor=white)]()
 [![Dataset](https://img.shields.io/badge/Dataset-Galaxy_Zoo_2-8B5CF6?style=flat-square)]()
-[![Status](https://img.shields.io/badge/Status-In_Development-F59E0B?style=flat-square)]()
+[![Test Accuracy](https://img.shields.io/badge/Test_Accuracy-94.99%25-22C55E?style=flat-square)]()
 
 ---
 
-## What Is This?
+## Overview
 
-This project trains a **Convolutional Neural Network (CNN)** to perform binary classification on galaxies by their morphological type — whether a galaxy is **elliptical** and **spiral** — using real citizen-science data from the [Galaxy Zoo 2](https://www.kaggle.com/c/galaxy-zoo-the-galaxy-challenge) Kaggle competition.
+This project trains a custom CNN to classify galaxy images as either **smooth/elliptical** or **featured/spiral** using the [Galaxy Zoo 2](https://www.kaggle.com/c/galaxy-zoo-the-galaxy-challenge) dataset — 61,578 real galaxy images collected from the Sloan Digital Sky Survey (SDSS) and labelled by hundreds of thousands of citizen science volunteers.
 
-Galaxy morphology is a fundamental astrophysical property. The shape of a galaxy encodes its formation history, star-formation rate, and environmental interactions. Automating this classification at scale is an active research problem — this project builds a deep learning pipeline to tackle it.
-
----
-
-## Background & Motivation
-
-This project sits at the intersection of two interests: **machine learning** and **astronomy**. Galaxy morphology classification is a genuinely hard problem at scale — the SDSS has imaged hundreds of millions of galaxies, far more than humans can manually classify. Projects like Galaxy Zoo crowd-sourced this problem; deep learning is the next step.
-
-Beyond the science, this project demonstrates a complete ML pipeline: from raw, messy probabilistic labels through feature engineering, model design, and GPU-accelerated training.
+The model achieves **94.99% accuracy on a held-out test set** with balanced precision and recall across both classes, trained entirely from scratch without transfer learning.
 
 ---
 
@@ -30,74 +24,99 @@ Beyond the science, this project demonstrates a complete ML pipeline: from raw, 
 
 | Metric | Value |
 |--------|-------|
-| Task | 2-class galaxy morphology classification |
-| Dataset | Galaxy Zoo 2 — 61,578 training images |
-| Baseline Accuracy | *In training* |
-| Model | Custom CNN (built from scratch) |
-| Hardware | NVIDIA RTX 3090 (CUDA 12.6) |
+| Test Accuracy | **94.99%** |
+| Test Samples | 6,422 |
+| Best Val Loss | 0.1225 |
+| Smooth Precision / Recall | 0.94 / 0.94 |
+| Featured Precision / Recall | 0.96 / 0.96 |
+| Training Time per Epoch | ~37 seconds (RTX 3090) |
 
-> Final accuracy figures will be updated upon training completion.
+### Learning Curves
+
+![Learning Curves](assets/learning_curves.png)
+
+The learning rate scheduler (`ReduceLROnPlateau`) reduced the LR from `3e-4 → 1.5e-4 → 7.5e-5` across training, visibly improving convergence in later epochs.
+
+### Confusion Matrix
+
+![Confusion Matrix](assets/confusion_matrix.png)
+
+The model makes near-symmetric errors across both classes — 159 smooth galaxies misclassified as featured and 163 featured galaxies misclassified as smooth — indicating no class bias.
 
 ---
 
-## The Dataset
+## Why This Project
 
-**Galaxy Zoo 2** is a citizen science dataset where hundreds of thousands of volunteers classified galaxy images from the Sloan Digital Sky Survey (SDSS). Each galaxy was answered against an 11-question decision tree, producing **37 soft probabilistic label values** per image — representing the fraction of volunteers who chose each answer.
+Galaxy morphology is a fundamental astrophysical property. A galaxy's shape encodes its formation history, star-formation rate, and environmental interactions. The SDSS has catalogued hundreds of millions of galaxies — far more than humans can manually classify. Projects like Galaxy Zoo crowd-sourced this at scale; deep learning is the logical next step.
 
-### Label Engineering
+Beyond the science, this project demonstrates a complete, production-style ML pipeline: raw messy probabilistic labels → label engineering → custom architecture → GPU training → rigorous evaluation on a held-out test set.
 
-The raw labels are *probabilistic*, not categorical. To convert them into hard training labels, I:
+---
 
-1. Extracted the three Question 1 columns (`Class1.1`, `Class1.2`), which correspond to **smooth/elliptical** and **featured/spiral**
+## Label Engineering
+
+The raw Galaxy Zoo 2 labels are **probabilistic**, not categorical. Each galaxy has 37 columns representing the fraction of volunteers who chose each answer in an 11-question decision tree.
+
+To convert these into hard training labels:
+
+1. Extracted `Class1.1` (smooth) and `Class1.2` (featured) — the two Question 1 columns
 2. Assigned the class with the highest volunteer agreement via `idxmax`
-3. Applied a **confidence threshold of ≥ 0.65** — samples where no class exceeded this threshold were excluded as ambiguous
+3. Applied a **0.65 confidence threshold** — galaxies where neither class exceeded this were excluded as too ambiguous to train on reliably
+4. Dropped the artifact class (`Class1.3`) — only 11 samples after filtering, insufficient for meaningful learning
 
-This threshold filtering is a deliberate design choice: training on ambiguous samples would inject noise that degrades model generalization.
+This filtering reduced the dataset from 61,578 to ~34,244 samples with a 40/60 smooth/featured split — a manageable class imbalance requiring no special handling.
 
 ---
 
 ## Architecture
 
+A four-block custom CNN built entirely from scratch:
+
 ```
-Raw JPG Images (424×424)
-        │
-        ▼
-  Data Augmentation
-  (RandomHorizontalFlip, RandomRotation, ColorJitter)
-        │
-        ▼
-  Normalization → Image stats
-        │
-        ▼
-  Custom CNN
-  [Conv → BatchNorm → ReLU → MaxPool] × N layers
-        │
-        ▼
-  Fully Connected Head → 2 outputs
-        │
-        ▼
-  Binary Classification
-  (Elliptical | Spiral )
+Input: (3, 224, 224)
+       │
+       ▼
+Conv Block 1: Conv2d(3→32) → BatchNorm → ReLU → MaxPool   →  (32, 112, 112)
+Conv Block 2: Conv2d(32→64) → BatchNorm → ReLU → MaxPool  →  (64, 56, 56)
+Conv Block 3: Conv2d(64→128) → BatchNorm → ReLU → MaxPool →  (128, 28, 28)
+Conv Block 4: Conv2d(128→256) → BatchNorm → ReLU → MaxPool → (256, 14, 14)
+       │
+       ▼
+Flatten → Linear(50176 → 512) → ReLU → Dropout(0.5) → Linear(512 → 2)
+       │
+       ▼
+Output: 2 logits (Smooth | Featured)
 ```
 
-### Why a Custom CNN?
+**Total parameters: 26,081,026**
 
-This project builds the convolutional network from scratch rather than using a pretrained backbone. The goal is to understand what the network actually learns — how early layers detect low-level features like edges and curves, and how deeper layers compose these into higher-level structures like spiral arms or elliptical envelopes. Building it from scratch also gives full control over the architecture decisions: depth, kernel sizes, pooling strategy, and regularization.
+### Design Decisions
+
+**Built from scratch, not transfer learning** — the goal was to understand what the network actually learns: how early layers detect edges and brightness gradients, and how deeper layers compose these into abstract morphological features like spiral arms. A pretrained backbone would obscure this.
+
+**BatchNorm after every conv layer** — stabilises activations throughout the network depth, enabling faster and more stable convergence.
+
+**Dropout(0.5) in the classifier head** — the primary regularisation mechanism. With 26M parameters and ~27k training samples, overfitting is the main risk.
+
+**Domain-specific augmentation** — `RandomHorizontalFlip`, `RandomVerticalFlip`, and `RandomRotation(180)` reflect a real physical property: galaxies have no preferred orientation in the sky.
 
 ---
 
-## Tech Stack
+## Training Setup
 
-| Component | Technology |
-|-----------|-----------|
-| Language | Python 3.11 |
-| Deep Learning Framework | PyTorch 2.x |
-| GPU Acceleration | CUDA 12.6 |
-| Data Processing | pandas, NumPy |
-| Image Handling | PIL, torchvision |
-| Visualization | Matplotlib |
-| Environment | venv (Python 3.11) |
-| Hardware | NVIDIA GeForce RTX 3090 |
+| Hyperparameter | Value |
+|----------------|-------|
+| Optimizer | Adam |
+| Initial Learning Rate | 3e-4 |
+| Scheduler | ReduceLROnPlateau (patience=3, factor=0.5) |
+| Early Stopping | patience=5 |
+| Batch Size | 64 |
+| Max Epochs | 30 |
+| Loss Function | CrossEntropyLoss |
+
+**Data split:** 70% train / 15% val / 15% test — splits are fixed with `random_state=42` for reproducibility. The test set was held out entirely and only evaluated once after training completed.
+
+**Normalisation:** Mean and std computed directly from the training set (`[0.0448, 0.0396, 0.0295]`, `[0.0878, 0.0729, 0.0646]`), not ImageNet values — galaxy images have a fundamentally different pixel distribution (mostly dark space with bright centres).
 
 ---
 
@@ -106,21 +125,33 @@ This project builds the convolutional network from scratch rather than using a p
 ```
 GalaxyClassifier/
 │
-├── data/
+├── assets/
+│   ├── confusion_matrix.png
+│   └── learning_curves.png
+│
+├── data/                              # excluded from git
 │   ├── images/
 │   │   └── train/
-│   │       └── images_training_rev1/   # 61,578 galaxy JPGs
-│   └── training_solutions_rev1.csv     # Soft probabilistic labels
+│   │       ├── images_training_rev1/  # original 424×424 JPGs
+│   │       └── images_resized/        # pre-resized 224×224 JPGs
+│   ├── train.csv
+│   ├── val.csv
+│   └── test.csv
 │
 ├── notebooks/
-│   └── eda.ipynb                       # Exploratory Data Analysis
+│   ├── exploration.ipynb              # EDA & label engineering
+│   └── performance_eval.ipynb        # learning curve visualisation
 │
-├── src/
-│   ├── dataset.py                      # PyTorch Dataset class
-│   ├── model.py                        # CNN architecture
-│   ├── train.py                        # Training loop
-│   └── evaluate.py                     # Evaluation & metrics
+├── dataset.py                         # PyTorch Dataset class
+├── model.py                           # GalaxyCNN architecture
+├── engine.py                          # train/val loop functions
+├── train.py                           # training entry point
+├── evaluate.py                        # test set evaluation & confusion matrix
+├── prepare_data.py                    # one-time data preprocessing & resizing
 │
+├── best_model.pth                     # saved model weights
+├── training_history.pt                # loss/accuracy history
+├── galaxy_stats.pt                    # dataset mean & std
 ├── requirements.txt
 └── README.md
 ```
@@ -132,8 +163,8 @@ GalaxyClassifier/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/galaxy-morphology-classifier.git
-cd galaxy-morphology-classifier
+git clone https://github.com/YOUR_USERNAME/GalaxyClassifier.git
+cd GalaxyClassifier
 ```
 
 ### 2. Create a virtual environment
@@ -149,7 +180,7 @@ source venv311/bin/activate
 ### 3. Install dependencies
 
 ```bash
-# PyTorch with CUDA 12.6 (GPU support)
+# PyTorch with CUDA 12.6
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
 
 # Other dependencies
@@ -162,34 +193,54 @@ You'll need a [Kaggle API token](https://www.kaggle.com/docs/api). Once configur
 
 ```bash
 kaggle competitions download -c galaxy-zoo-the-galaxy-challenge
+unzip galaxy-zoo-the-galaxy-challenge.zip -d data/
 ```
+
+### 5. Prepare the data
+
+Cleans labels, applies the confidence threshold, creates train/val/test splits, and pre-resizes all images to 224×224:
+
+```bash
+python prepare_data.py
+```
+
+### 6. Train
+
+```bash
+python train.py
+```
+
+### 7. Evaluate
+
+```bash
+python evaluate.py
+```
+
+Prints accuracy, precision, recall and F1 per class, and saves `assets/confusion_matrix.png`.
 
 ---
 
-## Roadmap
+## Tech Stack
 
-- [x] Environment setup (PyTorch + CUDA)
-- [x] Dataset download & label engineering
-- [ ] Exploratory Data Analysis (EDA)
-- [ ] Custom CNN architecture
-- [ ] Model training & evaluation
-- [ ] Confusion matrix & per-class metrics
-- [ ] Advanced: probabilistic label modeling (KL divergence loss)
+| Component | Technology |
+|-----------|-----------|
+| Language | Python 3.11 |
+| Deep Learning | PyTorch 2.x |
+| GPU Acceleration | CUDA 12.6 |
+| Data Processing | pandas, NumPy |
+| Image Handling | PIL, torchvision |
+| Visualisation | Matplotlib |
+| Metrics | scikit-learn |
+| Hardware | NVIDIA GeForce RTX 3090 (24GB) |
 
 ---
 
 ## Future Work
 
-- **Probabilistic label modeling** — instead of hard labels, model the full volunteer distribution using grouped softmax outputs and KL divergence loss. This treats label uncertainty as signal, not noise.
-- **Dataset expansion** — experiment with [Galaxy10 DECals](https://astronn.readthedocs.io/en/latest/galaxy10.html), a cleaner 10-class dataset useful for rapid iteration.
-- **Transfer learning** — explore fine-tuning a pretrained ResNet backbone as a performance comparison against the custom CNN.
-- **Astronomy RAG application** — a retrieval-augmented generation system over astrophysics literature as a follow-up project.
-
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
+- **Probabilistic label modelling** — instead of hard labels, predict the full volunteer distribution using KL divergence loss. This treats label uncertainty as signal rather than noise.
+- **Transfer learning comparison** — fine-tune a pretrained ResNet-18 as a performance baseline against the custom CNN.
+- **Extended classification** — expand to the full Galaxy Zoo 2 decision tree for multi-class morphology prediction (bars, rings, edge-on disks etc).
+- **Dataset expansion** — experiment with [Galaxy10 DECals](https://astronn.readthedocs.io/en/latest/galaxy10.html), a cleaner 10-class dataset.
 
 ---
 
@@ -198,3 +249,5 @@ MIT License — see [LICENSE](LICENSE) for details.
 - [Galaxy Zoo 2](https://www.zooniverse.org/projects/zookeeper/galaxy-zoo/) and the Zooniverse citizen science community
 - [Kaggle Galaxy Zoo Challenge](https://www.kaggle.com/c/galaxy-zoo-the-galaxy-challenge)
 - Sloan Digital Sky Survey (SDSS)
+
+---
