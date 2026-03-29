@@ -226,7 +226,7 @@ Prints accuracy, precision, recall and F1 per class, and saves `assets/confusion
 |-----------|-----------|
 | Language | Python 3.11 |
 | Deep Learning | PyTorch 2.x |
-| GPU Acceleration | CUDA 12.6 |
+| GPU Acceleration | CUDA 13.2 |
 | Data Processing | pandas, NumPy |
 | Image Handling | PIL, torchvision |
 | Visualisation | Matplotlib |
