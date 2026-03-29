@@ -6,7 +6,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)]()
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)]()
-[![CUDA](https://img.shields.io/badge/CUDA-12.6-76B900?style=flat-square&logo=nvidia&logoColor=white)]()
+[![CUDA](https://img.shields.io/badge/CUDA-13.2-76B900?style=flat-square&logo=nvidia&logoColor=white)]()
 [![Dataset](https://img.shields.io/badge/Dataset-Galaxy_Zoo_2-8B5CF6?style=flat-square)]()
 [![Test Accuracy](https://img.shields.io/badge/Test_Accuracy-94.99%25-22C55E?style=flat-square)]()
 
